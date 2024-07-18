@@ -12,6 +12,7 @@
     "bcryptjs": "^2.4.3",
     "mongoose": "^8.3.4",
     "next": "14.2.3",
+    "next-auth": "^4.24.7",
     "otp-generator": "^4.0.1",
     "react": "^18",
     "react-dom": "^18",

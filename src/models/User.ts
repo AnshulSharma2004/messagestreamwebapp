@@ -3,7 +3,7 @@ import mongoose, {Schema, Document} from "mongoose";
 export interface Message extends Document {
     content:string;
     createdAt:Date
-};
+}
 
 const MessageSchema: Schema<Message> = new Schema({
     content: {
@@ -62,10 +62,10 @@ const UserSchema: Schema<User> = new Schema({
     messages:[MessageSchema]
 })
 
-const userModel = mongoose.models.User as mongoose.Model<User> || mongoose.model<User>("User",UserSchema);
+const UserModel = mongoose.models.User as mongoose.Model<User> || mongoose.model<User>("User",UserSchema);
 
 // const messageModel = mongoose.models.Message as mongoose.Model<Message> || mongoose.model<Message>("Message",MessageSchema);
 
 
 
-export default userModel
+export default UserModel

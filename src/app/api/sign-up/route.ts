@@ -1,78 +1,78 @@
 import { sendVerificationEmail } from "@/helpers/sendVerificationEmail";
 import dbConnect from "@/lib/dbConnect";
-import userModel from "@/models/User";
+import UserModel from "@/models/User";
 import bcrypt from "bcryptjs"
 import otpGenerator from "otp-generator"
 
 export async function POST (request:Request) {
-    dbConnect()
+    await dbConnect()
 
     try {
         const {username, email, password} = await request.json();
-        const user = await userModel.findOne({email:email});
+        const existingUserVerifiedByName = await UserModel.findOne({
+            username:username,
+            isVerified:true
+        })
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        if(existingUserVerifiedByName) {
+            return Response.json({
+                success: false,
+                message: "Username already exists"
+            })
+        }
 
-        const verifyCode = otpGenerator.generate(6, {
-          upperCaseAlphabets: false,
-          specialChars: false,
-        });
-
-        if(user) {
-            if(user.isVerified) {
+        const userByEmail = await UserModel.findOne({email})
+        const verifyCode =   otpGenerator.generate(6, {
+            upperCaseAlphabets:false,
+            specialChars:false,
+            lowerCaseAlphabets:false
+        })
+        if(userByEmail) {
+            if(userByEmail.isVerified) {
                 return Response.json({
                     success:false,
-                    message:"User already verified"
-                },{status:400})
+                    message:"Email already exists"
+                })
             }
-            else {
+            const hashedPassword = await bcrypt.hash(password, 10)
 
-                user.password = hashedPassword;
-                user.verifyCode = verifyCode;
-                user.verifyCodeExpiry = new Date(Date.now() + 3600000);
 
-                await user.save();
+            const verifyCodeExpiry = new Date(Date.now() + 3600000)
+            userByEmail.verifyCode = verifyCode
+            userByEmail.verifyCodeExpiry = verifyCodeExpiry
+            userByEmail.password = hashedPassword
+            await userByEmail.save()
+        } else {
+            const hashedPassword = await bcrypt.hash(password, 10)
 
-            }
-        }
-        else {
-            const newUser = new userModel({
-                username:username,
-                email:email,
+
+            const verifyCodeExpiry = new Date(Date.now() + 3600000)
+
+            const newUser = new UserModel({
+                username,
+                email,
                 password:hashedPassword,
-                isVerified:false,
+                verifyCode,
+                verifyCodeExpiry,
                 messages:[],
-                verifyCodeExpiry:new Date(Date.now() + 3600000),
-                verifyCode:verifyCode
+                isVerified:false,
+                isAcceptingMessage:true
             })
-
             await newUser.save()
         }
 
-        const emailResponse = await sendVerificationEmail(
-          email,
-          username,
-          verifyCode
-        );
-
-        if (!emailResponse.success) {
-          return Response.json(
-            {
-              success: false,
-              message: emailResponse.message,
-            },
-            { status: 500 }
-          );
+        const emailResponse = await sendVerificationEmail(email, username, verifyCode)
+        if(!emailResponse.success) {
+            return Response.json({
+                success:false,
+                message:emailResponse.message
+            },{status:500})
         }
 
-        return Response.json(
-          {
-            success: true,
-            message: "User created successfully",
-          },
-          { status: 201 }
-        );
-
+        return Response.json({
+            success:true,
+            message:"User created successfully"
+        },{status:200})
     } catch (error) {
         console.log("Error in sign-up route");
         return Response.json({
